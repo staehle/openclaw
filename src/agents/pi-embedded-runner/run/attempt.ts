@@ -14,6 +14,7 @@ import { getMachineDisplayName } from "../../../infra/machine-name.js";
 import {
   ensureGlobalUndiciEnvProxyDispatcher,
   ensureGlobalUndiciStreamTimeouts,
+  patchGlobalFetchForEnvProxy,
 } from "../../../infra/net/undici-global-dispatcher.js";
 import { MAX_IMAGE_BYTES } from "../../../media/constants.js";
 import {
@@ -342,6 +343,7 @@ export async function runEmbeddedAttempt(
   // Proxy bootstrap must happen before timeout tuning so the timeouts wrap the
   // active EnvHttpProxyAgent instead of being replaced by a bare proxy dispatcher.
   ensureGlobalUndiciEnvProxyDispatcher();
+  patchGlobalFetchForEnvProxy();
   ensureGlobalUndiciStreamTimeouts();
 
   log.debug(
