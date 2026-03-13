@@ -29,7 +29,36 @@ function createStore(params?: {
   };
 }
 
+function createEmptyStore(): AuthProfileStore {
+  return {
+    version: 1,
+    profiles: {},
+  };
+}
+
 describe("discord auto presence", () => {
+  it("reports healthy when auth store is empty (static API key providers)", () => {
+    // When all providers use static env-var API keys, the AuthProfileStore is
+    // empty ({}). This must NOT be treated as degraded.
+    const now = Date.now();
+    const decision = resolveDiscordAutoPresenceDecision({
+      discordConfig: {
+        autoPresence: {
+          enabled: true,
+          healthyText: "online",
+        },
+      },
+      authStore: createEmptyStore(),
+      gatewayConnected: true,
+      now,
+    });
+
+    expect(decision).toBeTruthy();
+    expect(decision?.state).toBe("healthy");
+    expect(decision?.presence.status).toBe("online");
+    expect(decision?.presence.activities[0]?.state).toBe("online");
+  });
+
   it("maps exhausted runtime signal to dnd", () => {
     const now = Date.now();
     const decision = resolveDiscordAutoPresenceDecision({
