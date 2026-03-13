@@ -124,7 +124,13 @@ function resolveAuthAvailability(params: { store: AuthProfileStore; now: number 
 } {
   const profileIds = Object.keys(params.store.profiles);
   if (profileIds.length === 0) {
-    return { state: "degraded", unavailableReason: null };
+    // No OAuth profiles in the store. This is expected when all providers use
+    // static API keys configured via env vars (source: "env" in openclaw.json).
+    // Static-key providers never populate the AuthProfileStore, so an empty
+    // store is not a signal of degraded health — the provider is perfectly
+    // usable. Return healthy here; actual failures (rate limits, cooldowns,
+    // billing) are only reachable once profiles exist and enter cooldown.
+    return { state: "healthy", unavailableReason: null };
   }
 
   clearExpiredCooldowns(params.store, params.now);
