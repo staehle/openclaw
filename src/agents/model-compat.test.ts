@@ -28,6 +28,10 @@ function supportsUsageInStreaming(model: Model<Api>): boolean | undefined {
     ?.supportsUsageInStreaming;
 }
 
+function supportsStore(model: Model<Api>): boolean | undefined {
+  return (model.compat as { supportsStore?: boolean } | undefined)?.supportsStore;
+}
+
 function createTemplateModel(provider: string, id: string): Model<Api> {
   return {
     id,
@@ -92,6 +96,13 @@ function expectSupportsUsageInStreamingForcedOff(overrides?: Partial<Model<Api>>
   delete (model as { compat?: unknown }).compat;
   const normalized = normalizeModelCompat(model as Model<Api>);
   expect(supportsUsageInStreaming(normalized)).toBe(false);
+}
+
+function expectSupportsStoreForcedOff(overrides?: Partial<Model<Api>>): void {
+  const model = { ...baseModel(), ...overrides };
+  delete (model as { compat?: unknown }).compat;
+  const normalized = normalizeModelCompat(model as Model<Api>);
+  expect(supportsStore(normalized)).toBe(false);
 }
 
 function expectResolvedForwardCompat(
@@ -290,10 +301,55 @@ describe("normalizeModelCompat", () => {
 
   it("does not override explicit compat false", () => {
     const model = baseModel();
-    model.compat = { supportsDeveloperRole: false, supportsUsageInStreaming: false };
+    model.compat = {
+      supportsDeveloperRole: false,
+      supportsUsageInStreaming: false,
+      supportsStore: false,
+    };
     const normalized = normalizeModelCompat(model);
     expect(supportsDeveloperRole(normalized)).toBe(false);
     expect(supportsUsageInStreaming(normalized)).toBe(false);
+    expect(supportsStore(normalized)).toBe(false);
+  });
+
+  it("forces supportsStore off for non-native openai-completions endpoints", () => {
+    expectSupportsStoreForcedOff({
+      provider: "custom-litellm",
+      baseUrl: "https://ai-hub-lite.example.com/v1",
+    });
+  });
+
+  it("forces supportsStore off for Azure openai-completions endpoints", () => {
+    expectSupportsStoreForcedOff({
+      provider: "azure-openai",
+      baseUrl: "https://my-deployment.openai.azure.com/openai",
+    });
+  });
+
+  it("forces supportsStore off for z.ai models", () => {
+    expectSupportsStoreForcedOff();
+  });
+
+  it("leaves supportsStore unset for native api.openai.com completions", () => {
+    const model = {
+      ...baseModel(),
+      provider: "openai",
+      baseUrl: "https://api.openai.com/v1",
+    };
+    delete (model as { compat?: unknown }).compat;
+    const normalized = normalizeModelCompat(model);
+    expect(supportsStore(normalized)).toBeUndefined();
+  });
+
+  it("overrides explicit supportsStore true on non-native completions endpoints", () => {
+    const model = {
+      ...baseModel(),
+      provider: "custom-litellm",
+      baseUrl: "https://proxy.example.com/v1",
+      compat: { supportsStore: true },
+    };
+    const normalized = normalizeModelCompat(model);
+    expect(supportsStore(normalized)).toBe(false);
   });
 });
 

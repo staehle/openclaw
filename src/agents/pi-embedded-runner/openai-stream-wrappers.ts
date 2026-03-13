@@ -7,6 +7,7 @@ type OpenAIServiceTier = "auto" | "default" | "flex" | "priority";
 type OpenAIReasoningEffort = "low" | "medium" | "high";
 
 const OPENAI_RESPONSES_APIS = new Set(["openai-responses"]);
+const OPENAI_COMPLETIONS_APIS = new Set(["openai-completions"]);
 const OPENAI_RESPONSES_PROVIDERS = new Set(["openai", "azure-openai", "azure-openai-responses"]);
 
 function isDirectOpenAIBaseUrl(baseUrl: unknown): boolean {
@@ -116,6 +117,16 @@ function shouldStripResponsesStore(
     return false;
   }
   return OPENAI_RESPONSES_APIS.has(model.api) && model.compat?.supportsStore === false;
+}
+
+function shouldStripCompletionsStore(model: {
+  api?: unknown;
+  compat?: { supportsStore?: boolean };
+}): boolean {
+  if (typeof model.api !== "string") {
+    return false;
+  }
+  return OPENAI_COMPLETIONS_APIS.has(model.api) && model.compat?.supportsStore === false;
 }
 
 function applyOpenAIResponsesPayloadOverrides(params: {
@@ -280,6 +291,34 @@ export function createOpenAIResponsesContextManagementWrapper(
             useServerCompaction,
             compactThreshold,
           });
+        }
+        return originalOnPayload?.(payload, model);
+      },
+    });
+  };
+}
+
+/**
+ * Strip `store` from openai-completions payloads when compat.supportsStore is
+ * false.  pi-ai hardcodes `store: false` whenever its auto-detected
+ * `supportsStore` is truthy.  For non-OpenAI base URLs (e.g. LiteLLM proxies
+ * that forward to Azure), the upstream detection defaults to `supportsStore:
+ * true`, causing `store: false` to be sent — which Azure rejects.
+ */
+export function createOpenAICompletionsStoreStripWrapper(
+  baseStreamFn: StreamFn | undefined,
+): StreamFn {
+  const underlying = baseStreamFn ?? streamSimple;
+  return (model, context, options) => {
+    if (!shouldStripCompletionsStore(model)) {
+      return underlying(model, context, options);
+    }
+    const originalOnPayload = options?.onPayload;
+    return underlying(model, context, {
+      ...options,
+      onPayload: (payload) => {
+        if (payload && typeof payload === "object") {
+          delete (payload as Record<string, unknown>).store;
         }
         return originalOnPayload?.(payload, model);
       },

@@ -2148,4 +2148,92 @@ describe("applyExtraParamsToAgent", () => {
       expect(run().store).toBe(false);
     },
   );
+
+  it("strips store from openai-completions payload when supportsStore=false", () => {
+    const payload = runResponsesPayloadMutationCase({
+      applyProvider: "litellm",
+      applyModelId: "gpt-4o",
+      model: {
+        api: "openai-completions",
+        provider: "litellm",
+        id: "gpt-4o",
+        name: "gpt-4o",
+        baseUrl: "https://ai-hub-lite.example.com/v1",
+        reasoning: false,
+        input: ["text"],
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: 128_000,
+        maxTokens: 16_384,
+        compat: { supportsStore: false },
+      } as unknown as Model<"openai-completions">,
+      payload: { store: false, model: "gpt-4o" },
+    });
+    expect(payload).not.toHaveProperty("store");
+    expect(payload.model).toBe("gpt-4o");
+  });
+
+  it("strips store from openai-completions payload for Azure proxy with supportsStore=false", () => {
+    const payload = runResponsesPayloadMutationCase({
+      applyProvider: "azure-openai",
+      applyModelId: "gpt-4o",
+      model: {
+        api: "openai-completions",
+        provider: "azure-openai",
+        id: "gpt-4o",
+        name: "gpt-4o",
+        baseUrl: "https://my-deployment.openai.azure.com/openai",
+        reasoning: false,
+        input: ["text"],
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: 128_000,
+        maxTokens: 16_384,
+        compat: { supportsStore: false },
+      } as unknown as Model<"openai-completions">,
+      payload: { store: false, model: "gpt-4o" },
+    });
+    expect(payload).not.toHaveProperty("store");
+  });
+
+  it("does not strip store from openai-completions payload when supportsStore is not false", () => {
+    const payload = runResponsesPayloadMutationCase({
+      applyProvider: "openai",
+      applyModelId: "gpt-4o",
+      model: {
+        api: "openai-completions",
+        provider: "openai",
+        id: "gpt-4o",
+        name: "gpt-4o",
+        baseUrl: "https://api.openai.com/v1",
+        reasoning: false,
+        input: ["text"],
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: 128_000,
+        maxTokens: 16_384,
+      } as unknown as Model<"openai-completions">,
+      payload: { store: false, model: "gpt-4o" },
+    });
+    expect(payload.store).toBe(false);
+  });
+
+  it("does not strip store from openai-completions payload when supportsStore is true", () => {
+    const payload = runResponsesPayloadMutationCase({
+      applyProvider: "openai",
+      applyModelId: "gpt-4o",
+      model: {
+        api: "openai-completions",
+        provider: "openai",
+        id: "gpt-4o",
+        name: "gpt-4o",
+        baseUrl: "https://api.openai.com/v1",
+        reasoning: false,
+        input: ["text"],
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: 128_000,
+        maxTokens: 16_384,
+        compat: { supportsStore: true },
+      } as unknown as Model<"openai-completions">,
+      payload: { store: false, model: "gpt-4o" },
+    });
+    expect(payload.store).toBe(false);
+  });
 });

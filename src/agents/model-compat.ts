@@ -65,15 +65,27 @@ export function normalizeModelCompat(model: Model<Api>): Model<Api> {
   if (!needsForce) {
     return model;
   }
-  if (compat?.supportsDeveloperRole === false && compat?.supportsUsageInStreaming === false) {
+  if (
+    compat?.supportsDeveloperRole === false &&
+    compat?.supportsUsageInStreaming === false &&
+    compat?.supportsStore === false
+  ) {
     return model;
   }
 
   // Return a new object — do not mutate the caller's model reference.
+  // Also force supportsStore=false: pi-ai hardcodes `store: false` when
+  // supportsStore is truthy, but proxies like LiteLLM forwarding to Azure
+  // reject the unknown `store` parameter.
   return {
     ...model,
     compat: compat
-      ? { ...compat, supportsDeveloperRole: false, supportsUsageInStreaming: false }
-      : { supportsDeveloperRole: false, supportsUsageInStreaming: false },
+      ? {
+          ...compat,
+          supportsDeveloperRole: false,
+          supportsUsageInStreaming: false,
+          supportsStore: false,
+        }
+      : { supportsDeveloperRole: false, supportsUsageInStreaming: false, supportsStore: false },
   } as typeof model;
 }

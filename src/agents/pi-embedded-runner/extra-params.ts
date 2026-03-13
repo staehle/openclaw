@@ -23,6 +23,7 @@ import {
 } from "./moonshot-stream-wrappers.js";
 import {
   createCodexDefaultTransportWrapper,
+  createOpenAICompletionsStoreStripWrapper,
   createOpenAIDefaultTransportWrapper,
   createOpenAIFastModeWrapper,
   createOpenAIResponsesContextManagementWrapper,
@@ -463,6 +464,11 @@ export function applyExtraParamsToAgent(
   // Force `store=true` for direct OpenAI Responses models and auto-enable
   // server-side compaction for compatible OpenAI Responses payloads.
   agent.streamFn = createOpenAIResponsesContextManagementWrapper(agent.streamFn, merged);
+
+  // Work around upstream pi-ai hardcoding `store: false` for Completions API.
+  // Strip `store` from completions payloads when compat.supportsStore is false
+  // (e.g. LiteLLM proxies forwarding to Azure, which rejects unknown params).
+  agent.streamFn = createOpenAICompletionsStoreStripWrapper(agent.streamFn);
 
   const rawParallelToolCalls = resolveAliasedParamValue(
     [resolvedExtraParams, override],
