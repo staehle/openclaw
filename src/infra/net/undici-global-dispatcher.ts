@@ -2,6 +2,7 @@ import * as net from "node:net";
 import {
   Agent,
   EnvHttpProxyAgent,
+  FormData as UndiciFormData,
   fetch as undiciFetch,
   getGlobalDispatcher,
   setGlobalDispatcher,
@@ -193,11 +194,32 @@ export function patchGlobalFetchForEnvProxy(): void {
     return agent;
   };
 
-  const proxyFetch = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> =>
-    undiciFetch(input as Parameters<typeof undiciFetch>[0], {
+  const proxyFetch = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const adjusted: Record<string, unknown> = {
       ...(init as Record<string, unknown>),
       dispatcher: resolveAgent(),
-    }) as unknown as Promise<Response>) as typeof globalThis.fetch & {
+    };
+    // undici.fetch with a custom dispatcher only recognises undici's own
+    // FormData when auto-setting the multipart Content-Type header.  The
+    // global Node FormData (globalThis.FormData) is treated as an opaque body
+    // and sent as text/plain, breaking Discord file uploads and any other
+    // multipart API.  Convert on the fly.
+    if (init?.body instanceof FormData && !(init.body instanceof UndiciFormData)) {
+      const fd = new UndiciFormData();
+      for (const [key, value] of init.body.entries()) {
+        if (value instanceof File) {
+          fd.append(key, new Blob([value], { type: value.type }), value.name);
+        } else {
+          fd.append(key, value);
+        }
+      }
+      adjusted.body = fd;
+    }
+    return undiciFetch(
+      input as Parameters<typeof undiciFetch>[0],
+      adjusted,
+    ) as unknown as Promise<Response>;
+  }) as typeof globalThis.fetch & {
     __undiciProxyPatch: boolean;
   };
   proxyFetch.__undiciProxyPatch = true;
