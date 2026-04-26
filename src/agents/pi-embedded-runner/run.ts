@@ -1088,6 +1088,10 @@ export async function runEmbeddedPiAgent(
                   attempt: overflowCompactionAttempts,
                   maxAttempts: MAX_OVERFLOW_COMPACTION_ATTEMPTS,
                 };
+                params.onAgentEvent?.({
+                  stream: "compaction",
+                  data: { phase: "start" },
+                });
                 compactResult = await contextEngine.compact({
                   sessionId: params.sessionId,
                   sessionKey: params.sessionKey,
@@ -1147,9 +1151,17 @@ export async function runEmbeddedPiAgent(
                   }
                 }
                 autoCompactionCount += 1;
+                params.onAgentEvent?.({
+                  stream: "compaction",
+                  data: { phase: "end", completed: true },
+                });
                 log.info(`auto-compaction succeeded for ${provider}/${modelId}; retrying prompt`);
                 continue;
               }
+              params.onAgentEvent?.({
+                stream: "compaction",
+                data: { phase: "end", completed: false },
+              });
               log.warn(
                 `auto-compaction failed for ${provider}/${modelId}: ${compactResult.reason ?? "nothing to compact"}`,
               );
