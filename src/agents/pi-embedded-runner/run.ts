@@ -2184,6 +2184,21 @@ export async function runEmbeddedPiAgent(
                   break;
                 }
               }
+
+              // Critical threshold check (separate from milestones — action-based)
+              const criticalThreshold = contextWarningsCfg.criticalThreshold ?? 0.95;
+              if (ratio >= criticalThreshold && !contextWarningsFired.has(-1)) {
+                contextWarningsFired.add(-1);
+                params.onAgentEvent({
+                  stream: "context-critical",
+                  data: {
+                    ratio,
+                    contextTokens: promptTokens,
+                    contextWindow,
+                    action: contextWarningsCfg.criticalAction ?? "warn",
+                  },
+                });
+              }
             }
           }
 
