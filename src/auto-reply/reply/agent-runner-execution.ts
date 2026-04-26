@@ -1002,7 +1002,7 @@ export async function runAgentTurnWithFallback(params: {
         ? "🚨 Context CRITICAL — triggering compaction..."
         : action === "reset"
           ? "🚨 Context CRITICAL — starting new session..."
-          : "🚨 Context CRITICAL (95%+) — Saving important state to memory now. Use /compact or /new to free space.";
+          : "🚨 Context CRITICAL (95%+) — save important state to memory now. Use /compact or /new to free space.";
     const noticePayload = params.applyReplyToMode({
       text,
       replyToId: currentMessageId,
@@ -1718,12 +1718,34 @@ export async function runAgentTurnWithFallback(params: {
                     const shouldNotify =
                       evt.data.notifyUser !== false && contextWarningsCfg?.notifyUser !== false;
                     if (milestone !== undefined && shouldNotify) {
-                      await sendContextWarningNotice(milestone);
+                      // Deduplicate across runs using the session store
+                      const sessionEntry =
+                        params.sessionKey && params.activeSessionStore
+                          ? params.activeSessionStore[params.sessionKey]
+                          : undefined;
+                      const alreadyFired = sessionEntry?.contextWarningsFired ?? [];
+                      if (!alreadyFired.includes(milestone)) {
+                        await sendContextWarningNotice(milestone);
+                        if (sessionEntry) {
+                          sessionEntry.contextWarningsFired = [...alreadyFired, milestone];
+                        }
+                      }
                     }
                   }
                   if (evt.stream === "context-critical") {
                     const action = readStringValue(evt.data.action) ?? "warn";
-                    await sendContextCriticalNotice(action);
+                    // Deduplicate critical warning across runs
+                    const sessionEntry =
+                      params.sessionKey && params.activeSessionStore
+                        ? params.activeSessionStore[params.sessionKey]
+                        : undefined;
+                    const alreadyFired = sessionEntry?.contextWarningsFired ?? [];
+                    if (!alreadyFired.includes(-1)) {
+                      await sendContextCriticalNotice(action);
+                      if (sessionEntry) {
+                        sessionEntry.contextWarningsFired = [...alreadyFired, -1];
+                      }
+                    }
                   }
                 },
                 // Always pass onBlockReply so flushBlockReplyBuffer works before tool execution,
