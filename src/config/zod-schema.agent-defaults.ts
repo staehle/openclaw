@@ -166,6 +166,18 @@ export const AgentDefaultsSchema = z
       })
       .strict()
       .optional(),
+    contextWarnings: z
+      .object({
+        enabled: z.boolean().optional(),
+        milestones: z.array(z.number().min(0).max(1)).optional(),
+        notifyUser: z.boolean().optional(),
+        criticalThreshold: z.number().min(0).max(1).optional(),
+        criticalAction: z
+          .union([z.literal("warn"), z.literal("compact"), z.literal("reset")])
+          .optional(),
+      })
+      .strict()
+      .optional(),
     compaction: z
       .object({
         mode: z.union([z.literal("default"), z.literal("safeguard")]).optional(),

@@ -1185,6 +1185,18 @@ export const FIELD_HELP: Record<string, string> = {
   "agents.defaults.imageMaxDimensionPx":
     "Max image side length in pixels when sanitizing transcript/tool-result image payloads (default: 1200).",
   "agents.defaults.cliBackends": "Optional CLI backends for text-only fallback (claude-cli, etc.).",
+  "agents.defaults.contextWarnings":
+    "Proactive context-usage milestone warnings sent to the user as context fills up. Enable this to receive visible chat notices before compaction is imminent, giving you time to act.",
+  "agents.defaults.contextWarnings.enabled":
+    "Enable context milestone warnings (default: false). When enabled, visible notices are sent when context crosses configured milestone fractions.",
+  "agents.defaults.contextWarnings.milestones":
+    "Context-usage fractions (0–1) at which milestone warnings fire (default: [0.50, 0.75, 0.90]). Each milestone fires at most once per session.",
+  "agents.defaults.contextWarnings.notifyUser":
+    "Send a visible message to the user's chat when a milestone is crossed (default: true). Disable to suppress chat noise while still allowing future hook integrations.",
+  "agents.defaults.contextWarnings.criticalThreshold":
+    "Context-usage fraction considered critical (default: 0.95). Reserved for Phase 3 critical-action behavior — define it now to reserve the config key.",
+  "agents.defaults.contextWarnings.criticalAction":
+    'Action taken when context crosses criticalThreshold (default: "warn"). Phase 3 options: "warn" (notice only), "compact" (auto-compact), "reset" (new session). Currently a no-op — define to reserve the config key.',
   "agents.defaults.compaction":
     "Compaction tuning for when context nears token limits, including history share, reserve headroom, and pre-compaction memory flush behavior. Use this when long-running sessions need stable continuity under tight context windows.",
   "agents.defaults.compaction.mode":

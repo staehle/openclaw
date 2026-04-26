@@ -475,6 +475,7 @@ export async function runEmbeddedPiAgent(
       const usageAccumulator = createUsageAccumulator();
       let lastRunPromptUsage: ReturnType<typeof normalizeUsage> | undefined;
       let autoCompactionCount = 0;
+      const contextWarningsFired = new Set<number>();
       let runLoopIterations = 0;
       let overloadProfileRotations = 0;
       let planningOnlyRetryAttempts = 0;
@@ -1648,6 +1649,35 @@ export async function runEmbeddedPiAgent(
           };
           const finalAssistantVisibleText = resolveFinalAssistantVisibleText(sessionLastAssistant);
           const finalAssistantRawText = resolveFinalAssistantRawText(sessionLastAssistant);
+
+          // ── Context milestone warnings ────────────────────────────────────
+          const contextWarningsCfg = params.config?.agents?.defaults?.contextWarnings;
+          if (contextWarningsCfg?.enabled === true && params.onAgentEvent) {
+            const promptTokens = derivePromptTokens(lastRunPromptUsage);
+            const contextWindow = ctxInfo.tokens;
+            if (promptTokens != null && contextWindow > 0) {
+              const ratio = promptTokens / contextWindow;
+              const milestones = (contextWarningsCfg.milestones ?? [0.5, 0.75, 0.9])
+                .slice()
+                .toSorted((a, b) => b - a);
+              for (const milestone of milestones) {
+                if (ratio >= milestone && !contextWarningsFired.has(milestone)) {
+                  contextWarningsFired.add(milestone);
+                  params.onAgentEvent({
+                    stream: "context-warning",
+                    data: {
+                      milestone,
+                      ratio,
+                      contextTokens: promptTokens,
+                      contextWindow,
+                      notifyUser: contextWarningsCfg.notifyUser !== false,
+                    },
+                  });
+                  break;
+                }
+              }
+            }
+          }
 
           const payloads = buildEmbeddedRunPayloads({
             assistantTexts: attempt.assistantTexts,
