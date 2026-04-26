@@ -661,6 +661,27 @@ export async function runAgentTurnWithFallback(params: {
     }
   };
   const contextWarningsCfg = runtimeConfig?.agents?.defaults?.contextWarnings;
+  const sendContextCriticalNotice = async (action: string) => {
+    if (!params.opts?.onBlockReply) {
+      return;
+    }
+    const text =
+      action === "compact"
+        ? "🚨 Context CRITICAL — triggering compaction..."
+        : action === "reset"
+          ? "🚨 Context CRITICAL — starting new session..."
+          : "🚨 Context CRITICAL (95%+) — Saving important state to memory now. Use /compact or /new to free space.";
+    const noticePayload = params.applyReplyToMode({
+      text,
+      replyToId: currentMessageId,
+      replyToCurrent: true,
+    });
+    try {
+      await params.opts.onBlockReply(noticePayload);
+    } catch (err) {
+      logVerbose(`context critical notice delivery failed (non-fatal): ${String(err)}`);
+    }
+  };
   const sendContextWarningNotice = async (milestone: number) => {
     if (!params.opts?.onBlockReply) {
       return;
@@ -1237,6 +1258,10 @@ export async function runAgentTurnWithFallback(params: {
                     if (milestone !== undefined && shouldNotify) {
                       await sendContextWarningNotice(milestone);
                     }
+                  }
+                  if (evt.stream === "context-critical") {
+                    const action = readStringValue(evt.data.action) ?? "warn";
+                    await sendContextCriticalNotice(action);
                   }
                 },
                 // Always pass onBlockReply so flushBlockReplyBuffer works before tool execution,
