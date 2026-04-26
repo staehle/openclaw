@@ -1506,6 +1506,43 @@ export async function runEmbeddedPiAgent(
             }
             // Attempt explicit overflow compaction only when this attempt did not
             // already auto-compact.
+            const compactionModeForOverflow = params.config?.agents?.defaults?.compaction?.mode;
+            if (compactionModeForOverflow === "off") {
+              log.warn(
+                `auto-compaction disabled (mode=off); context overflow for ${provider}/${modelId}; returning user-facing error`,
+              );
+              attempt.setTerminalLifecycleMeta?.({
+                replayInvalid: resolveReplayInvalidForAttempt(),
+                livenessState: "blocked",
+              });
+              return {
+                payloads: [
+                  {
+                    text:
+                      "Context exceeded model limit. Auto-compaction is disabled. " +
+                      "Use /compact to manually summarize history or /new to start fresh.",
+                    isError: true,
+                  },
+                ],
+                meta: {
+                  durationMs: Date.now() - started,
+                  agentMeta: buildErrorAgentMeta({
+                    sessionId: sessionIdUsed,
+                    provider,
+                    model: model.id,
+                    usageAccumulator,
+                    lastRunPromptUsage,
+                    lastAssistant: sessionLastAssistant,
+                    lastTurnTotal,
+                  }),
+                  systemPromptReport: attempt.systemPromptReport,
+                  finalPromptText: attempt.finalPromptText,
+                  replayInvalid: resolveReplayInvalidForAttempt(),
+                  livenessState: "blocked",
+                  error: { kind: "context_overflow", message: errorText },
+                },
+              };
+            }
             if (
               !isCompactionFailure &&
               !hadAttemptLevelCompaction &&

@@ -3004,25 +3004,32 @@ export async function runEmbeddedAttempt(
             }
           }
           if (preemptiveCompaction.shouldCompact) {
-            preflightRecovery =
-              preemptiveCompaction.route === "compact_then_truncate"
-                ? { route: "compact_then_truncate" }
-                : { route: "compact_only" };
-            promptError = new Error(PREEMPTIVE_OVERFLOW_ERROR_TEXT);
-            promptErrorSource = "precheck";
-            log.warn(
-              `[context-overflow-precheck] sessionKey=${params.sessionKey ?? params.sessionId} ` +
-                `provider=${params.provider}/${params.modelId} ` +
-                `route=${preemptiveCompaction.route} ` +
-                `estimatedPromptTokens=${preemptiveCompaction.estimatedPromptTokens} ` +
-                `promptBudgetBeforeReserve=${preemptiveCompaction.promptBudgetBeforeReserve} ` +
-                `overflowTokens=${preemptiveCompaction.overflowTokens} ` +
-                `toolResultReducibleChars=${preemptiveCompaction.toolResultReducibleChars} ` +
-                `reserveTokens=${reserveTokens} ` +
-                `effectiveReserveTokens=${preemptiveCompaction.effectiveReserveTokens} ` +
-                `sessionFile=${params.sessionFile}`,
-            );
-            skipPromptSubmission = true;
+            if (params.config?.agents?.defaults?.compaction?.mode === "off") {
+              log.warn(
+                `[context-overflow-precheck] auto-compaction disabled (mode=off); skipping preemptive compaction for ` +
+                  `${params.provider}/${params.modelId} — submitting prompt anyway`,
+              );
+            } else {
+              preflightRecovery =
+                preemptiveCompaction.route === "compact_then_truncate"
+                  ? { route: "compact_then_truncate" }
+                  : { route: "compact_only" };
+              promptError = new Error(PREEMPTIVE_OVERFLOW_ERROR_TEXT);
+              promptErrorSource = "precheck";
+              log.warn(
+                `[context-overflow-precheck] sessionKey=${params.sessionKey ?? params.sessionId} ` +
+                  `provider=${params.provider}/${params.modelId} ` +
+                  `route=${preemptiveCompaction.route} ` +
+                  `estimatedPromptTokens=${preemptiveCompaction.estimatedPromptTokens} ` +
+                  `promptBudgetBeforeReserve=${preemptiveCompaction.promptBudgetBeforeReserve} ` +
+                  `overflowTokens=${preemptiveCompaction.overflowTokens} ` +
+                  `toolResultReducibleChars=${preemptiveCompaction.toolResultReducibleChars} ` +
+                  `reserveTokens=${reserveTokens} ` +
+                  `effectiveReserveTokens=${preemptiveCompaction.effectiveReserveTokens} ` +
+                  `sessionFile=${params.sessionFile}`,
+              );
+              skipPromptSubmission = true;
+            }
           }
 
           if (!skipPromptSubmission) {
