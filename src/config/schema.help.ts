@@ -1200,7 +1200,7 @@ export const FIELD_HELP: Record<string, string> = {
   "agents.defaults.compaction":
     "Compaction tuning for when context nears token limits, including history share, reserve headroom, and pre-compaction memory flush behavior. Use this when long-running sessions need stable continuity under tight context windows.",
   "agents.defaults.compaction.mode":
-    'Compaction strategy mode: "default" uses baseline behavior, while "safeguard" applies stricter guardrails to preserve recent context. Keep "default" unless you observe aggressive history loss near limit boundaries.',
+    'Compaction strategy mode: "default" uses baseline behavior; "safeguard" applies stricter guardrails to preserve recent context; "off" disables all auto-compaction (overflow errors return a user-facing message — use /compact to compact manually). Keep "default" unless you observe aggressive history loss near limit boundaries.',
   "agents.defaults.compaction.provider":
     "Id of a registered compaction provider plugin used for summarization. When set and the provider is registered, its summarize() method is called instead of the built-in summarizeInStages pipeline. Falls back to built-in on provider failure. Leave unset to use the default built-in summarization.",
   "agents.defaults.compaction.reserveTokens":
