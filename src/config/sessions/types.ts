@@ -290,6 +290,8 @@ export type SessionEntry = {
   fallbackNoticeActiveModel?: string;
   fallbackNoticeReason?: string;
   contextTokens?: number;
+  /** Milestone fractions (0–1) for which context warnings have already fired this session. */
+  contextWarningsFired?: number[];
   compactionCount?: number;
   compactionCheckpoints?: SessionCompactionCheckpoint[];
   memoryFlushAt?: number;

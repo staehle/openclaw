@@ -992,6 +992,29 @@ export async function runAgentTurnWithFallback(params: {
       logVerbose(`compaction hook notice delivery failed (non-fatal): ${String(err)}`);
     }
   };
+  const contextWarningsCfg = runtimeConfig?.agents?.defaults?.contextWarnings;
+  const sendContextWarningNotice = async (milestone: number) => {
+    if (!params.opts?.onBlockReply) {
+      return;
+    }
+    const pct = Math.round(milestone * 100);
+    const text =
+      milestone >= 0.9
+        ? `🔴 Context at ${pct}% — compaction imminent. Save critical state to memory now.`
+        : milestone >= 0.75
+          ? `⚠️ Context at ${pct}% — approaching limit. Important context may be lost during auto-compaction.`
+          : `⚠️ Context at ${pct}% — consider using /compact or /new if the conversation is wrapping up`;
+    const noticePayload = params.applyReplyToMode({
+      text,
+      replyToId: currentMessageId,
+      replyToCurrent: true,
+    });
+    try {
+      await params.opts.onBlockReply(noticePayload);
+    } catch (err) {
+      logVerbose(`context warning notice delivery failed (non-fatal): ${String(err)}`);
+    }
+  };
   const shouldSurfaceToControlUi = isInternalMessageChannel(
     params.followupRun.run.messageProvider ??
       params.sessionCtx.Surface ??
@@ -1666,6 +1689,15 @@ export async function runAgentTurnWithFallback(params: {
                       } else if (shouldNotifyUserAboutCompaction) {
                         await sendCompactionNotice("incomplete");
                       }
+                    }
+                  }
+                  if (evt.stream === "context-warning") {
+                    const milestone =
+                      typeof evt.data.milestone === "number" ? evt.data.milestone : undefined;
+                    const shouldNotify =
+                      evt.data.notifyUser !== false && contextWarningsCfg?.notifyUser !== false;
+                    if (milestone !== undefined && shouldNotify) {
+                      await sendContextWarningNotice(milestone);
                     }
                   }
                 },

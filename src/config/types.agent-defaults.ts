@@ -294,6 +294,8 @@ export type AgentDefaultsConfig = {
   contextPruning?: AgentContextPruningConfig;
   /** Compaction tuning and pre-compaction memory flush behavior. */
   compaction?: AgentCompactionConfig;
+  /** Context milestone warning configuration. */
+  contextWarnings?: ContextWarningsConfig;
   /** Embedded Pi runner hardening and compatibility controls. */
   embeddedPi?: {
     /**
@@ -538,4 +540,30 @@ export type AgentCompactionMemoryFlushConfig = {
   prompt?: string;
   /** System prompt appended for the memory flush turn. */
   systemPrompt?: string;
+};
+
+export type ContextWarningsConfig = {
+  /** Enable context milestone warnings (default: false). */
+  enabled?: boolean;
+  /** Fractions of context window at which warnings fire (default: [0.50, 0.75, 0.90]). */
+  milestones?: number[];
+  /** Send visible message to chat when a milestone is crossed (default: true). */
+  notifyUser?: boolean;
+  /** Fraction of context window considered critical (default: 0.95). Defined here for Phase 3. */
+  criticalThreshold?: number;
+  /** Action when critical threshold is crossed (default: "warn"). Implemented in Phase 3. */
+  criticalAction?: "warn" | "compact" | "reset";
+};
+
+/**
+ * LLM timeout configuration.
+ */
+export type AgentLlmConfig = {
+  /**
+   * Idle timeout for LLM streaming responses in seconds.
+   * If no token is received within this time, the request is aborted.
+   * Set to 0 to disable (never timeout).
+   * If unset, OpenClaw uses the default LLM idle timeout.
+   */
+  idleTimeoutSeconds?: number;
 };
