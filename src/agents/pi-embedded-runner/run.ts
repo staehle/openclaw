@@ -1560,6 +1560,10 @@ export async function runEmbeddedPiAgent(
                   attempt: overflowCompactionAttempts,
                   maxAttempts: MAX_OVERFLOW_COMPACTION_ATTEMPTS,
                 };
+                params.onAgentEvent?.({
+                  stream: "compaction",
+                  data: { phase: "start" },
+                });
                 compactResult = await contextEngine.compact({
                   sessionId: activeSessionId,
                   sessionKey: params.sessionKey,
@@ -1630,12 +1634,20 @@ export async function runEmbeddedPiAgent(
                   }
                 }
                 autoCompactionCount += 1;
+                params.onAgentEvent?.({
+                  stream: "compaction",
+                  data: { phase: "end", completed: true },
+                });
                 log.info(`auto-compaction succeeded for ${provider}/${modelId}; retrying prompt`);
                 if (preflightRecovery?.source === "mid-turn") {
                   nextAttemptPromptOverride = MID_TURN_PRECHECK_CONTINUATION_PROMPT;
                 }
                 continue;
               }
+              params.onAgentEvent?.({
+                stream: "compaction",
+                data: { phase: "end", completed: false },
+              });
               log.warn(
                 `auto-compaction failed for ${provider}/${modelId}: ${compactResult.reason ?? "nothing to compact"}`,
               );
