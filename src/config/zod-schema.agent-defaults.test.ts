@@ -228,4 +228,21 @@ describe("agent defaults schema", () => {
     expect(() => AgentEntrySchema.parse({ id: "ops", contextTokens: 1.5 })).toThrow();
     expect(() => AgentDefaultsSchema.parse({ contextTokens: 0 })).toThrow();
   });
+
+  it("accepts fallbackNotice with enabled and notifyUser flags", () => {
+    const result = AgentDefaultsSchema.parse({
+      fallbackNotice: { enabled: true, notifyUser: false },
+    })!;
+    expect(result.fallbackNotice?.enabled).toBe(true);
+    expect(result.fallbackNotice?.notifyUser).toBe(false);
+  });
+
+  it("accepts fallbackNotice with no fields (all optional)", () => {
+    const result = AgentDefaultsSchema.parse({ fallbackNotice: {} })!;
+    expect(result.fallbackNotice).toBeDefined();
+  });
+
+  it("rejects fallbackNotice with unknown fields", () => {
+    expect(() => AgentDefaultsSchema.parse({ fallbackNotice: { unknownField: true } })).toThrow();
+  });
 });

@@ -292,6 +292,10 @@ export type AgentDefaultsConfig = {
   cliBackends?: Record<string, CliBackendConfig>;
   /** Opt-in: prune old tool results from the LLM context to reduce token usage. */
   contextPruning?: AgentContextPruningConfig;
+  /** LLM timeout configuration. */
+  llm?: AgentLlmConfig;
+  /** Proactive chat notification when model fallback transitions occur. */
+  fallbackNotice?: AgentFallbackNoticeConfig;
   /** Compaction tuning and pre-compaction memory flush behavior. */
   compaction?: AgentCompactionConfig;
   /** Context milestone warning configuration. */
@@ -437,6 +441,13 @@ export type AgentDefaultsConfig = {
   };
   /** Optional sandbox settings for non-main sessions. */
   sandbox?: AgentSandboxConfig;
+};
+
+export type AgentFallbackNoticeConfig = {
+  /** Enable proactive fallback notices (default: true). Set to false to suppress all fallback notifications. */
+  enabled?: boolean;
+  /** Send a chat notice to the user when a model fallback transition occurs (default: true). */
+  notifyUser?: boolean;
 };
 
 export type AgentCompactionMode = "default" | "safeguard" | "off";

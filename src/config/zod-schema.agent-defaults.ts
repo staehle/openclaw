@@ -243,6 +243,13 @@ export const AgentDefaultsSchema = z
       })
       .strict()
       .optional(),
+    fallbackNotice: z
+      .object({
+        enabled: z.boolean().optional(),
+        notifyUser: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
     embeddedPi: z
       .object({
         projectSettingsPolicy: z

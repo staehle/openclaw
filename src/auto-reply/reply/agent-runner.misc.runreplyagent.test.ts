@@ -2538,3 +2538,163 @@ describe("runReplyAgent mid-turn rate-limit fallback", () => {
     expect(payload?.text).toBeUndefined();
   });
 });
+
+describe("runReplyAgent fallback notice", () => {
+  function createFallbackRun(config?: Record<string, unknown>) {
+    const typing = createMockTypingController();
+    const sessionCtx = {
+      Provider: "whatsapp",
+      OriginatingTo: "+15550001111",
+      AccountId: "primary",
+      MessageSid: "msg",
+    } as unknown as TemplateContext;
+    const resolvedQueue = { mode: "interrupt" } as unknown as QueueSettings;
+    const followupRun = {
+      prompt: "hello",
+      summaryLine: "hello",
+      enqueuedAt: Date.now(),
+      run: {
+        agentId: "main",
+        agentDir: "/tmp/agent",
+        sessionId: "session",
+        sessionKey: "main",
+        messageProvider: "whatsapp",
+        sessionFile: "/tmp/session.jsonl",
+        workspaceDir: "/tmp",
+        config: config ?? {},
+        skillsSnapshot: {},
+        provider: "anthropic",
+        model: "claude-opus-4-7",
+        thinkLevel: "low",
+        reasoningLevel: "on",
+        verboseLevel: "off",
+        elevatedLevel: "off",
+        bashElevated: { enabled: false, allowed: false, defaultLevel: "off" },
+        timeoutMs: 1_000,
+        blockReplyBreak: "message_end",
+      },
+    } as unknown as FollowupRun;
+    return { typing, sessionCtx, resolvedQueue, followupRun };
+  }
+
+  beforeEach(() => {
+    runEmbeddedPiAgentMock.mockResolvedValue({
+      payloads: [{ text: "ok" }],
+      meta: {
+        agentMeta: { model: "gpt-5.4", provider: "openai", usage: { input: 100, output: 20 } },
+      },
+    });
+    runWithModelFallbackMock.mockImplementation(async ({ run }: RunWithModelFallbackParams) => ({
+      result: await run("openai", "gpt-5.4"),
+      provider: "openai",
+      model: "gpt-5.4",
+      attempts: [
+        {
+          provider: "anthropic",
+          model: "claude-opus-4-7",
+          error: "timeout",
+          reason: "timeout",
+        },
+      ],
+    }));
+  });
+
+  it("sends fallback notice when a fallback model is used", async () => {
+    const onBlockReply = vi.fn().mockResolvedValue(undefined);
+    const { typing, sessionCtx, resolvedQueue, followupRun } = createFallbackRun();
+
+    await runReplyAgent({
+      commandBody: "hello",
+      followupRun,
+      queueKey: "main",
+      resolvedQueue,
+      shouldSteer: false,
+      shouldFollowup: false,
+      isActive: false,
+      isStreaming: false,
+      typing,
+      sessionCtx,
+      defaultModel: "anthropic/claude-opus-4-7",
+      resolvedVerboseLevel: "off",
+      isNewSession: false,
+      blockStreamingEnabled: false,
+      resolvedBlockStreamingBreak: "message_end",
+      shouldInjectGroupIntro: false,
+      typingMode: "instant",
+      opts: { onBlockReply },
+    });
+
+    const noticeCalls = onBlockReply.mock.calls.filter(
+      (call) => typeof call[0]?.text === "string" && call[0].text.includes("↪️ Model Fallback:"),
+    );
+    expect(noticeCalls).toHaveLength(1);
+    expect(noticeCalls[0][0].text).toContain("gpt-5.4");
+    expect(noticeCalls[0][0].text).toContain("claude-opus-4-7");
+  });
+
+  it("does not send fallback notice when fallbackNotice.enabled is false", async () => {
+    const onBlockReply = vi.fn().mockResolvedValue(undefined);
+    const { typing, sessionCtx, resolvedQueue, followupRun } = createFallbackRun({
+      agents: { defaults: { fallbackNotice: { enabled: false } } },
+    });
+
+    await runReplyAgent({
+      commandBody: "hello",
+      followupRun,
+      queueKey: "main",
+      resolvedQueue,
+      shouldSteer: false,
+      shouldFollowup: false,
+      isActive: false,
+      isStreaming: false,
+      typing,
+      sessionCtx,
+      defaultModel: "anthropic/claude-opus-4-7",
+      resolvedVerboseLevel: "off",
+      isNewSession: false,
+      blockStreamingEnabled: false,
+      resolvedBlockStreamingBreak: "message_end",
+      shouldInjectGroupIntro: false,
+      typingMode: "instant",
+      opts: { onBlockReply },
+    });
+
+    const noticeCalls = onBlockReply.mock.calls.filter(
+      (call) => typeof call[0]?.text === "string" && call[0].text.includes("↪️ Model Fallback:"),
+    );
+    expect(noticeCalls).toHaveLength(0);
+  });
+
+  it("does not send fallback notice when fallbackNotice.notifyUser is false", async () => {
+    const onBlockReply = vi.fn().mockResolvedValue(undefined);
+    const { typing, sessionCtx, resolvedQueue, followupRun } = createFallbackRun({
+      agents: { defaults: { fallbackNotice: { notifyUser: false } } },
+    });
+
+    await runReplyAgent({
+      commandBody: "hello",
+      followupRun,
+      queueKey: "main",
+      resolvedQueue,
+      shouldSteer: false,
+      shouldFollowup: false,
+      isActive: false,
+      isStreaming: false,
+      typing,
+      sessionCtx,
+      defaultModel: "anthropic/claude-opus-4-7",
+      resolvedVerboseLevel: "off",
+      isNewSession: false,
+      blockStreamingEnabled: false,
+      resolvedBlockStreamingBreak: "message_end",
+      shouldInjectGroupIntro: false,
+      typingMode: "instant",
+      opts: { onBlockReply },
+    });
+
+    const noticeCalls = onBlockReply.mock.calls.filter(
+      (call) => typeof call[0]?.text === "string" && call[0].text.includes("↪️ Model Fallback:"),
+    );
+    expect(noticeCalls).toHaveLength(0);
+  });
+});
