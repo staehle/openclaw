@@ -15,6 +15,7 @@ import {
 } from "../../config/sessions.js";
 import type { TypingMode } from "../../config/types.js";
 import { resolveSessionTranscriptCandidates } from "../../gateway/session-utils.fs.js";
+import { logVerbose } from "../../globals.js";
 import { emitAgentEvent } from "../../infra/agent-events.js";
 import { emitDiagnosticEvent, isDiagnosticsEnabled } from "../../infra/diagnostic-events.js";
 import { enqueueSystemEvent } from "../../infra/system-events.js";
@@ -1021,6 +1022,7 @@ export async function runReplyAgent(params: {
     return undefined;
   }
 
+  const originalConfig = followupRun.run.config;
   followupRun.run.config = await resolveQueuedReplyExecutionConfig(followupRun.run.config, {
     originatingChannel: sessionCtx.OriginatingChannel,
     messageProvider: followupRun.run.messageProvider,
@@ -1490,6 +1492,26 @@ export async function runReplyAgent(params: {
       verboseNotices.push({ text: `🧭 New session: ${followupRun.run.sessionId}` });
     }
 
+    const fallbackNoticeCfg = originalConfig?.agents?.defaults?.fallbackNotice;
+    const shouldNotifyFallback =
+      fallbackNoticeCfg?.enabled !== false && fallbackNoticeCfg?.notifyUser !== false;
+    const sendFallbackNotice = async (text: string) => {
+      if (!opts?.onBlockReply) {
+        return;
+      }
+      const noticeCurrentMessageId = sessionCtx.MessageSidFull ?? sessionCtx.MessageSid;
+      const noticePayload = applyReplyToMode({
+        text,
+        replyToId: noticeCurrentMessageId,
+        replyToCurrent: true,
+      });
+      try {
+        await opts.onBlockReply(noticePayload);
+      } catch (err) {
+        logVerbose(`fallback notice delivery failed (non-fatal): ${String(err)}`);
+      }
+    };
+
     if (fallbackTransition.fallbackTransitioned) {
       emitAgentEvent({
         runId,
@@ -1506,6 +1528,18 @@ export async function runReplyAgent(params: {
           attempts: fallbackAttempts,
         },
       });
+      if (shouldNotifyFallback) {
+        const noticeText = buildFallbackNotice({
+          selectedProvider,
+          selectedModel,
+          activeProvider: providerUsed,
+          activeModel: modelUsed,
+          attempts: fallbackAttempts,
+        });
+        if (noticeText) {
+          await sendFallbackNotice(noticeText);
+        }
+      }
       if (verboseEnabled) {
         const fallbackNotice = buildFallbackNotice({
           selectedProvider,
@@ -1533,6 +1567,15 @@ export async function runReplyAgent(params: {
           previousActiveModel: fallbackTransition.previousState.activeModel,
         },
       });
+      if (shouldNotifyFallback) {
+        await sendFallbackNotice(
+          buildFallbackClearedNotice({
+            selectedProvider,
+            selectedModel,
+            previousActiveModel: fallbackTransition.previousState.activeModel,
+          }),
+        );
+      }
       if (verboseEnabled) {
         verboseNotices.push({
           text: buildFallbackClearedNotice({
