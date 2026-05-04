@@ -13,3 +13,4 @@ export function configureEmbeddedAttemptHttpRuntime(params: { timeoutMs: number 
   ensureGlobalUndiciStreamTimeouts({
     timeoutMs: Math.max(params.timeoutMs, DEFAULT_UNDICI_STREAM_TIMEOUT_MS),
   });
+}

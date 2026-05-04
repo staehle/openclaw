@@ -40,6 +40,7 @@ import {
   type SessionEntry,
   updateSessionStore,
 } from "../../config/sessions.js";
+import { updateSessionStoreEntry } from "../../config/sessions.js";
 import { logVerbose } from "../../globals.js";
 import { emitAgentEvent, registerAgentRunContext } from "../../infra/agent-events.js";
 import { formatErrorMessage } from "../../infra/errors.js";
@@ -1727,7 +1728,15 @@ export async function runAgentTurnWithFallback(params: {
                       if (!alreadyFired.includes(milestone)) {
                         await sendContextWarningNotice(milestone);
                         if (sessionEntry) {
-                          sessionEntry.contextWarningsFired = [...alreadyFired, milestone];
+                          const updated = [...alreadyFired, milestone];
+                          sessionEntry.contextWarningsFired = updated;
+                          if (params.storePath && params.sessionKey) {
+                            await updateSessionStoreEntry({
+                              storePath: params.storePath,
+                              sessionKey: params.sessionKey,
+                              update: async () => ({ contextWarningsFired: updated }),
+                            });
+                          }
                         }
                       }
                     }
@@ -1743,7 +1752,15 @@ export async function runAgentTurnWithFallback(params: {
                     if (!alreadyFired.includes(-1)) {
                       await sendContextCriticalNotice(action);
                       if (sessionEntry) {
-                        sessionEntry.contextWarningsFired = [...alreadyFired, -1];
+                        const updated = [...alreadyFired, -1];
+                        sessionEntry.contextWarningsFired = updated;
+                        if (params.storePath && params.sessionKey) {
+                          await updateSessionStoreEntry({
+                            storePath: params.storePath,
+                            sessionKey: params.sessionKey,
+                            update: async () => ({ contextWarningsFired: updated }),
+                          });
+                        }
                       }
                     }
                   }
